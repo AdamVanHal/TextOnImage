@@ -1,6 +1,9 @@
 package gui;
 
 import java.awt.EventQueue;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -11,6 +14,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
@@ -88,7 +92,33 @@ public class AppWindow {
           e.printStackTrace();
           System.exit(1);
         }
+        Graphics2D gImage = image.createGraphics();
         
+        //setup font stuff so we can write on the image
+        Font overlayFont = new Font("Arial",Font.PLAIN,24);
+        gImage.setFont(overlayFont);
+        gImage.setColor(Color.YELLOW);
+        //Draw a string on the image
+        gImage.drawString("Test String", 100, 100);
+        
+        
+        //save image
+        returnVal = fc.showOpenDialog(frame);
+		if (returnVal == JFileChooser.APPROVE_OPTION) {
+            file = fc.getSelectedFile();
+            //anything else we want to do with the file
+        } else {
+            //action on cancel, probably nothing
+        }
+		//TODO this method blows away existing EXIF data, find way to preserve.
+        try {
+			ImageIO.write(image, "jpg", file);
+		} catch (IOException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
+        
+        //get the byte array of the original file of the image so that we can use it directly to find the EXIF data. Assumes the image is a jpeg
         byte imageBytes[]=null;
 		try {
 			imageBytes = Files.readAllBytes(file.toPath());
@@ -96,6 +126,7 @@ public class AppWindow {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		//use Apache library to calculate the metadata and convert it to a TIFF style EXIF 
 		ImageMetadata metadata = null;
         try {
 			metadata = Imaging.getMetadata(imageBytes);
@@ -109,6 +140,7 @@ public class AppWindow {
         final JpegImageMetadata jpegMetadata = (JpegImageMetadata) metadata;
         final TiffImageMetadata exif = jpegMetadata.getExif();
         
+        //Extract GPS metadata from the image
         TiffImageMetadata.GPSInfo gpsInfo = null;
         try {
 			gpsInfo = exif.getGPS();
@@ -116,12 +148,16 @@ public class AppWindow {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
-        System.out.println(jpegMetadata.findEXIFValueWithExactMatch(TiffTagConstants.TIFF_TAG_DATE_TIME).getValueDescription());
         
+        //print gps and date info to SYSO for debugging reasons, remove in final release. TODO remove when done
+        System.out.println(jpegMetadata.findEXIFValueWithExactMatch(TiffTagConstants.TIFF_TAG_DATE_TIME).getValueDescription());
         System.out.println(gpsInfo.latitudeDegrees + "° " + gpsInfo.latitudeMinutes + "\' " + gpsInfo.latitudeSeconds.doubleValue() + "\" " + gpsInfo.latitudeRef);
         System.out.println(gpsInfo.longitudeDegrees + "° " + gpsInfo.longitudeMinutes + "\' " + gpsInfo.longitudeSeconds.doubleValue() + "\" " + gpsInfo.longitudeRef);
         System.out.println();
-        TiffOutputSet outputSet = null;
+        
+        
+        
+//        TiffOutputSet outputSet = null;
 //        try {
 //			outputSet = exif.getOutputSet();
 //		} catch (ImageWriteException e) {
