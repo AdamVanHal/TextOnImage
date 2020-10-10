@@ -19,11 +19,13 @@ import java.awt.Color;
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 
+import org.apache.commons.imaging.ImageFormats;
 import org.apache.commons.imaging.ImageReadException;
 import org.apache.commons.imaging.ImageWriteException;
 import org.apache.commons.imaging.Imaging;
 import org.apache.commons.imaging.common.ImageMetadata;
 import org.apache.commons.imaging.formats.jpeg.JpegImageMetadata;
+import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
 import org.apache.commons.imaging.formats.tiff.TiffImageMetadata;
 import org.apache.commons.imaging.formats.tiff.constants.ExifTagConstants;
 import org.apache.commons.imaging.formats.tiff.constants.GeoTiffTagConstants;
@@ -85,6 +87,7 @@ public class AppWindow {
         try
         {
           image = ImageIO.read(file);
+//          image = Imaging.getBufferedImage(file); //different library, not sure if different, use if there are problems
         }
         catch (Exception e)
         {
@@ -110,9 +113,10 @@ public class AppWindow {
         } else {
             //action on cancel, probably nothing
         }
-		//TODO this method blows away existing EXIF data, find way to preserve.
+		
         try {
-			ImageIO.write(image, "jpg", file);
+			ImageIO.write(image, "jpg", file); //TODO this method blows away existing EXIF data, find way to preserve. Write exif back to image after making?
+//			Imaging.writeImage(image, file, ImageFormats.JPEG, null); //library does not support JPG writing so can not use this
 		} catch (IOException e2) {
 			// TODO Auto-generated catch block
 			e2.printStackTrace();
