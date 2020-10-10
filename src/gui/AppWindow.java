@@ -95,9 +95,9 @@ public class AppWindow {
         Graphics2D gImage = image.createGraphics();
         
         //setup font stuff so we can write on the image
-        Font overlayFont = new Font("Arial",Font.PLAIN,24);
+        Font overlayFont = new Font(Font.SANS_SERIF,Font.PLAIN,60);
         gImage.setFont(overlayFont);
-        gImage.setColor(Color.YELLOW);
+        gImage.setColor(Color.BLACK);
         //Draw a string on the image
         gImage.drawString("Test String", 100, 100);
         
