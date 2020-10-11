@@ -5,16 +5,23 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.Shape;
+import java.awt.font.FontRenderContext;
+import java.awt.font.TextLayout;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.text.DecimalFormat;
 
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 
@@ -134,12 +141,21 @@ public class AppWindow {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
+        //Construct GPS Coord String
+        DecimalFormat df = new DecimalFormat("0.00000");
+        String coords = null;
+        try {
+			coords = df.format(Math.abs(gpsInfo.getLatitudeAsDegreesNorth())) + "° " + gpsInfo.latitudeRef + ", " + df.format(Math.abs(gpsInfo.getLongitudeAsDegreesEast())) + "° " + gpsInfo.longitudeRef;
+		} catch (ImageReadException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
         
         //print gps and date info to SYSO for debugging reasons, remove in final release. TODO remove when done
         System.out.println(jpegMetadata.findEXIFValueWithExactMatch(TiffTagConstants.TIFF_TAG_DATE_TIME).getValueDescription());
         System.out.println(gpsInfo.latitudeDegrees + "° " + gpsInfo.latitudeMinutes + "\' " + gpsInfo.latitudeSeconds.doubleValue() + "\" " + gpsInfo.latitudeRef);
         System.out.println(gpsInfo.longitudeDegrees + "° " + gpsInfo.longitudeMinutes + "\' " + gpsInfo.longitudeSeconds.doubleValue() + "\" " + gpsInfo.longitudeRef);
-        System.out.println();
+        System.out.println(coords);
         
         
         
@@ -160,9 +176,18 @@ public class AppWindow {
         //setup font stuff so we can write on the image
         Font overlayFont = new Font(Font.SANS_SERIF,Font.PLAIN,60);
         gImage.setFont(overlayFont);
-        gImage.setColor(Color.BLACK);
+        //create shape of the outer edge of the text. This will allow us to draw the outline in one color and then fill with solid color
+        TextLayout coordLayout = new TextLayout(coords,overlayFont,new FontRenderContext(null,false,false)); //turn string into style we want for rendering
+        AffineTransform transform = new AffineTransform();
+        transform.translate(100, 100);//set location of outline for rendering
+        Shape outline = coordLayout.getOutline(transform); //get the outer edges of the text
         //Draw a string on the image
-        gImage.drawString("Test String", 100, 100);
+        //gImage.drawString(coords, 100, 100);//string does not quite line up if you use this, using fill instead.
+        gImage.setColor(Color.BLACK);
+        gImage.setStroke(new BasicStroke(2));
+        gImage.draw(outline);//adds the outline
+        gImage.setColor(Color.YELLOW);
+        gImage.fill(outline); //fill in the outline with color
         
         //save image
         returnVal = fc.showOpenDialog(frame);
