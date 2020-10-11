@@ -2,6 +2,7 @@ package gui;
 
 import java.awt.EventQueue;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -20,6 +21,7 @@ import java.text.DecimalFormat;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.filechooser.FileFilter;
 
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
@@ -89,6 +91,18 @@ public class AppWindow {
 		
 		//open file chooser
 		File file = null;
+		//fc.setMultiSelectionEnabled(true);
+		//TODO rewrite to iterate an array of files
+		fc.setFileFilter(new FileFilter(){
+			public boolean accept(File file) {
+				if(file.getName().toLowerCase().endsWith(".jpg") || file.getName().toLowerCase().endsWith(".jpeg")) {
+					return true;}
+				return false;
+			}
+			public String getDescription() {
+				return "JPG and JPEG images";
+			}
+			});
 		int returnVal = fc.showOpenDialog(frame);
 		if (returnVal == JFileChooser.APPROVE_OPTION) {
             file = fc.getSelectedFile();
@@ -143,9 +157,9 @@ public class AppWindow {
 		}
         //Construct GPS Coord String
         DecimalFormat df = new DecimalFormat("0.00000");
-        String coords = null;
+        String dateCoords = jpegMetadata.findEXIFValueWithExactMatch(TiffTagConstants.TIFF_TAG_DATE_TIME).getValueDescription();
         try {
-			coords = df.format(Math.abs(gpsInfo.getLatitudeAsDegreesNorth())) + "° " + gpsInfo.latitudeRef + ", " + df.format(Math.abs(gpsInfo.getLongitudeAsDegreesEast())) + "° " + gpsInfo.longitudeRef;
+			dateCoords = df.format(Math.abs(gpsInfo.getLatitudeAsDegreesNorth())) + "° " + gpsInfo.latitudeRef + ", " + df.format(Math.abs(gpsInfo.getLongitudeAsDegreesEast())) + "° " + gpsInfo.longitudeRef + " " + dateCoords;
 		} catch (ImageReadException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -155,7 +169,7 @@ public class AppWindow {
         System.out.println(jpegMetadata.findEXIFValueWithExactMatch(TiffTagConstants.TIFF_TAG_DATE_TIME).getValueDescription());
         System.out.println(gpsInfo.latitudeDegrees + "° " + gpsInfo.latitudeMinutes + "\' " + gpsInfo.latitudeSeconds.doubleValue() + "\" " + gpsInfo.latitudeRef);
         System.out.println(gpsInfo.longitudeDegrees + "° " + gpsInfo.longitudeMinutes + "\' " + gpsInfo.longitudeSeconds.doubleValue() + "\" " + gpsInfo.longitudeRef);
-        System.out.println(coords);
+        System.out.println(dateCoords);
         
         
         
@@ -177,9 +191,9 @@ public class AppWindow {
         Font overlayFont = new Font(Font.SANS_SERIF,Font.PLAIN,60);
         gImage.setFont(overlayFont);
         //create shape of the outer edge of the text. This will allow us to draw the outline in one color and then fill with solid color
-        TextLayout coordLayout = new TextLayout(coords,overlayFont,new FontRenderContext(null,false,false)); //turn string into style we want for rendering
+        TextLayout coordLayout = new TextLayout(dateCoords,overlayFont,new FontRenderContext(null,false,false)); //turn string into style we want for rendering
         AffineTransform transform = new AffineTransform();
-        transform.translate(100, 100);//set location of outline for rendering
+        transform.translate(image.getWidth()*0.03, image.getHeight()*0.95-coordLayout.getAscent());//set location of outline for rendering in the bottom of the image
         Shape outline = coordLayout.getOutline(transform); //get the outer edges of the text
         //Draw a string on the image
         //gImage.drawString(coords, 100, 100);//string does not quite line up if you use this, using fill instead.
