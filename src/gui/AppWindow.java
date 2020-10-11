@@ -7,6 +7,8 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 
@@ -16,7 +18,12 @@ import javax.swing.JLabel;
 import java.awt.BorderLayout;
 import java.awt.Color;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
+import javax.imageio.stream.FileImageOutputStream;
 import javax.swing.ImageIcon;
 
 import org.apache.commons.imaging.ImageFormats;
@@ -97,31 +104,6 @@ public class AppWindow {
         }
         Graphics2D gImage = image.createGraphics();
         
-        //setup font stuff so we can write on the image
-        Font overlayFont = new Font(Font.SANS_SERIF,Font.PLAIN,60);
-        gImage.setFont(overlayFont);
-        gImage.setColor(Color.BLACK);
-        //Draw a string on the image
-        gImage.drawString("Test String", 100, 100);
-        
-        
-        //save image
-        returnVal = fc.showOpenDialog(frame);
-		if (returnVal == JFileChooser.APPROVE_OPTION) {
-            file = fc.getSelectedFile();
-            //anything else we want to do with the file
-        } else {
-            //action on cancel, probably nothing
-        }
-		
-        try {
-			ImageIO.write(image, "jpg", file); //TODO this method blows away existing EXIF data, find way to preserve. Write exif back to image after making?
-//			Imaging.writeImage(image, file, ImageFormats.JPEG, null); //library does not support JPG writing so can not use this
-		} catch (IOException e2) {
-			// TODO Auto-generated catch block
-			e2.printStackTrace();
-		}
-        
         //get the byte array of the original file of the image so that we can use it directly to find the EXIF data. Assumes the image is a jpeg
         byte imageBytes[]=null;
 		try {
@@ -161,19 +143,77 @@ public class AppWindow {
         
         
         
-//        TiffOutputSet outputSet = null;
-//        try {
-//			outputSet = exif.getOutputSet();
-//		} catch (ImageWriteException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
+        TiffOutputSet outputSet = null;
+        try {
+			outputSet = exif.getOutputSet();
+		} catch (ImageWriteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 //        TiffOutputDirectory gpsCoords=null;
 //        gpsCoords = outputSet.getGPSDirectory();
 //        
 //        System.out.println(gpsCoords.findField(2));
 //        System.out.println(gpsCoords.findField(4));
 //        TiffOutputField field = gpsCoords.findField(2);
+        
+        //setup font stuff so we can write on the image
+        Font overlayFont = new Font(Font.SANS_SERIF,Font.PLAIN,60);
+        gImage.setFont(overlayFont);
+        gImage.setColor(Color.BLACK);
+        //Draw a string on the image
+        gImage.drawString("Test String", 100, 100);
+        
+        //save image
+        returnVal = fc.showOpenDialog(frame);
+		if (returnVal == JFileChooser.APPROVE_OPTION) {
+            file = fc.getSelectedFile();
+            //anything else we want to do with the file
+        } else {
+            //action on cancel, probably nothing
+        }
+		
+		//create and image writer and set it to the quality settings we want
+		final ImageWriter imWrite = ImageIO.getImageWritersByFormatName("jpg").next();
+		JPEGImageWriteParam jpgParams = new JPEGImageWriteParam(null);
+		jpgParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+		jpgParams.setCompressionQuality(0.95f);//set quality to 90% using float
+		
+		//set location for writer by turning our file into an output stream and passing that to setOutput so we can close it later.
+		FileImageOutputStream fileOutStream = null;
+		try {
+			fileOutStream = new FileImageOutputStream(file);
+		} catch (IOException e4) {
+			// TODO Auto-generated catch block
+			e4.printStackTrace();
+		}
+		imWrite.setOutput(fileOutStream);
+        try {
+        	imWrite.write(null,new IIOImage(image,null,null),jpgParams);//write image using params set above. Still need to add EXIF data
+        	fileOutStream.close();//close the file to release locks
+//			ImageIO.write(image, "jpg", file); //TODO this method blows away existing EXIF data, find way to preserve. Write exif back to image after making?
+//			Imaging.writeImage(image, file, ImageFormats.JPEG, null); //library does not support JPG writing so can not use this
+		} catch (IOException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
+        
+        //add EXIF data using Apache library
+        try {
+			new ExifRewriter().updateExifMetadataLossless(Files.readAllBytes(file.toPath()), new FileOutputStream(file), outputSet);
+		} catch (ImageReadException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ImageWriteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
         
 	}
 
