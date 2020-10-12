@@ -108,17 +108,19 @@ public class AppWindow {
 	 */
 	private void initialize() {
 		frame = new JFrame();
-		frame.setBounds(100, 100, 450, 300);
+		frame.setBounds(100, 100, 600, 800);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setIconImage(null);
+		frame.setResizable(true);
 		
         textField = new JTextField();
-        textField.setBounds(7, 232, 417, 20);
+        textField.setBounds(7, 727, 564, 23);
         frame.getContentPane().add(textField);
         textField.setColumns(10);
         textField.getText();
         
         JButton btnOpen = new JButton("Open File(s)");
-        btnOpen.setBounds(7, 7, 194, 23);
+        btnOpen.setBounds(7, 7, 267, 23);
         btnOpen.addMouseListener(new MouseAdapter() {
         	@Override
         	public void mouseReleased(MouseEvent e) {
@@ -260,7 +262,7 @@ public class AppWindow {
         frame.getContentPane().add(btnOpen);
         
         JButton btnSave = new JButton("Save File");
-        btnSave.setBounds(211, 7, 213, 23);
+        btnSave.setBounds(284, 7, 290, 23);
         btnSave.addMouseListener(new MouseAdapter() {
         	@Override
         	public void mouseReleased(MouseEvent e) {
