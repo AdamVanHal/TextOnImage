@@ -2,10 +2,7 @@ package gui;
 
 import java.awt.EventQueue;
 import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.font.FontRenderContext;
@@ -26,11 +23,9 @@ import java.util.Locale;
 
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.filechooser.FileFilter;
 
 import java.awt.BasicStroke;
-import java.awt.BorderLayout;
 import java.awt.Color;
 
 import javax.imageio.IIOImage;
@@ -39,9 +34,6 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
 import javax.imageio.stream.FileImageOutputStream;
-import javax.swing.ImageIcon;
-
-import org.apache.commons.imaging.ImageFormats;
 import org.apache.commons.imaging.ImageReadException;
 import org.apache.commons.imaging.ImageWriteException;
 import org.apache.commons.imaging.Imaging;
@@ -49,20 +41,13 @@ import org.apache.commons.imaging.common.ImageMetadata;
 import org.apache.commons.imaging.formats.jpeg.JpegImageMetadata;
 import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
 import org.apache.commons.imaging.formats.tiff.TiffImageMetadata;
-import org.apache.commons.imaging.formats.tiff.constants.ExifTagConstants;
-import org.apache.commons.imaging.formats.tiff.constants.GeoTiffTagConstants;
-import org.apache.commons.imaging.formats.tiff.constants.TiffConstants;
 import org.apache.commons.imaging.formats.tiff.constants.TiffTagConstants;
-import org.apache.commons.imaging.formats.tiff.write.TiffOutputDirectory;
-import org.apache.commons.imaging.formats.tiff.write.TiffOutputField;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
-import java.awt.GridBagLayout;
-import java.awt.GridLayout;
 import javax.swing.JButton;
-import java.awt.GridBagConstraints;
-import java.awt.Insets;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import javax.swing.JTextField;
+
 
 public class AppWindow {
 
@@ -74,6 +59,8 @@ public class AppWindow {
 	BufferedImage image = null; //Image that we will be manipulating
 	Graphics2D gImage = null; //allows easy drawing on image
 	TiffOutputSet outputSet = null; //stores EXIF data to write to new image
+	private JTextField textField;
+	double drawLocation = 0;
 	
 	/**
 	 * Launch the application.
@@ -124,16 +111,15 @@ public class AppWindow {
 		frame.setBounds(100, 100, 450, 300);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		
-		GridBagLayout gridBagLayout = new GridBagLayout();
-        gridBagLayout.columnWidths = new int[]{0, 0, 0, 0};
-        gridBagLayout.rowHeights = new int[]{0, 0};
-        gridBagLayout.columnWeights = new double[]{0.0, 0.0, 0.0, Double.MIN_VALUE};
-        gridBagLayout.rowWeights = new double[]{0.0, Double.MIN_VALUE};
-        frame.getContentPane().setLayout(gridBagLayout);
+        textField = new JTextField();
+        textField.setBounds(7, 232, 417, 20);
+        frame.getContentPane().add(textField);
+        textField.setColumns(10);
+        textField.getText();
         
-        JButton btnNewButton = new JButton("Open File(s)");
-        btnNewButton.addMouseListener(new MouseAdapter() {
+        JButton btnOpen = new JButton("Open File(s)");
+        btnOpen.setBounds(7, 7, 194, 23);
+        btnOpen.addMouseListener(new MouseAdapter() {
         	@Override
         	public void mouseReleased(MouseEvent e) {
         		//open file chooser
@@ -238,9 +224,9 @@ public class AppWindow {
                     //create shape of the outer edge of the text. This will allow us to draw the outline in one color and then fill with solid color
                     TextLayout textLayout = new TextLayout(date,overlayFont,new FontRenderContext(null,false,false)); //turn string into style we want for rendering
                     AffineTransform transform = new AffineTransform();
-                    double startPoint = image.getHeight()*0.97 - textLayout.getAscent()*3.3;//where the line of text should be, start at 3 lines above the 97% mark 
-                    transform.translate(image.getWidth()*0.03, startPoint);//set location of outline for rendering in the bottom of the image
-                    startPoint = startPoint + textLayout.getAscent()*1.1;//drop down a line
+                    drawLocation = image.getHeight()*0.97 - textLayout.getAscent()*3.3;//where the line of text should be, start at 3 lines above the 97% mark 
+                    transform.translate(image.getWidth()*0.03, drawLocation);//set location of outline for rendering in the bottom of the image
+                    drawLocation = drawLocation + textLayout.getAscent()*1.1;//drop down a line
                     Shape outline = textLayout.getOutline(transform); //get the outer edges of the text
                     //Draw a string on the image
                     //gImage.drawString(coords, 100, 100);//string does not quite line up if you use this, using fill instead.
@@ -254,8 +240,8 @@ public class AppWindow {
                     //create shape of the outer edge of the text. This will allow us to draw the outline in one color and then fill with solid color
                     textLayout = new TextLayout(coords,overlayFont,new FontRenderContext(null,false,false)); //turn string into style we want for rendering
                     transform = new AffineTransform();
-                    transform.translate(image.getWidth()*0.03, startPoint);//set location of outline for rendering in the bottom of the image
-                    startPoint = startPoint + textLayout.getAscent()*1.1;//drop down a line
+                    transform.translate(image.getWidth()*0.03, drawLocation);//set location of outline for rendering in the bottom of the image
+                    drawLocation = drawLocation + textLayout.getAscent()*1.1;//drop down a line
                     outline = textLayout.getOutline(transform); //get the outer edges of the text
                     //Draw a string on the image
                     //gImage.drawString(coords, 100, 100);//string does not quite line up if you use this, using fill instead.
@@ -270,17 +256,32 @@ public class AppWindow {
                 }
         	}
         });
-        GridBagConstraints gbc_btnNewButton = new GridBagConstraints();
-        gbc_btnNewButton.fill = GridBagConstraints.HORIZONTAL;
-        gbc_btnNewButton.insets = new Insets(0, 0, 0, 5);
-        gbc_btnNewButton.gridx = 0;
-        gbc_btnNewButton.gridy = 0;
-        frame.getContentPane().add(btnNewButton, gbc_btnNewButton);
+        frame.getContentPane().setLayout(null);
+        frame.getContentPane().add(btnOpen);
         
-        JButton btnNewButton_1 = new JButton("Save File");
-        btnNewButton_1.addMouseListener(new MouseAdapter() {
+        JButton btnSave = new JButton("Save File");
+        btnSave.setBounds(211, 7, 213, 23);
+        btnSave.addMouseListener(new MouseAdapter() {
         	@Override
         	public void mouseReleased(MouseEvent e) {
+        		//draw user text
+        		if(textField.getText() != null) {
+        			
+        			//create shape of the outer edge of the text. This will allow us to draw the outline in one color and then fill with solid color
+                    Font overlayFont = new Font(Font.SANS_SERIF,Font.BOLD,70);
+        			TextLayout textLayout = new TextLayout(textField.getText(),overlayFont,new FontRenderContext(null,false,false)); //turn string into style we want for rendering
+                    AffineTransform transform = new AffineTransform();
+                    transform.translate(image.getWidth()*0.03, drawLocation);//set location of outline for rendering in the bottom of the image
+                    drawLocation = drawLocation + textLayout.getAscent()*1.1;//drop down a line
+                    Shape outline = textLayout.getOutline(transform); //get the outer edges of the text
+                    //Draw a string on the image
+                    //gImage.drawString(coords, 100, 100);//string does not quite line up if you use this, using fill instead.
+                    gImage.setColor(Color.BLACK);
+                    gImage.setStroke(new BasicStroke(10));
+                    gImage.draw(outline);//adds the outline
+                    gImage.setColor(Color.getHSBColor(28/360f, 1f, 1f));
+                    gImage.fill(outline); //fill in the outline with color
+        		}
         		//save image
                 int returnVal = fc.showOpenDialog(frame);
         		if (returnVal == JFileChooser.APPROVE_OPTION) {
@@ -334,11 +335,9 @@ public class AppWindow {
         		
         	}
         });
-        GridBagConstraints gbc_btnNewButton_1 = new GridBagConstraints();
-        gbc_btnNewButton_1.fill = GridBagConstraints.HORIZONTAL;
-        gbc_btnNewButton_1.gridx = 2;
-        gbc_btnNewButton_1.gridy = 0;
-        frame.getContentPane().add(btnNewButton_1, gbc_btnNewButton_1);
+        frame.getContentPane().add(btnSave);
+        
+
 		
 		
 		
