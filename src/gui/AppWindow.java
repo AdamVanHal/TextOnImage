@@ -43,15 +43,20 @@ import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
 import org.apache.commons.imaging.formats.tiff.TiffImageMetadata;
 import org.apache.commons.imaging.formats.tiff.constants.TiffTagConstants;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
+
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.JTextField;
+import javax.swing.JLabel;
+
 
 
 public class AppWindow {
 
 	private JFrame frame;
+	JLabel lblImage;
 	
 	final JFileChooser fc = new JFileChooser(); //Create a file chooser for selecting our images
 	File file = null; //location of our image file
@@ -61,6 +66,7 @@ public class AppWindow {
 	TiffOutputSet outputSet = null; //stores EXIF data to write to new image
 	private JTextField textField;
 	double drawLocation = 0;
+	
 	
 	/**
 	 * Launch the application.
@@ -87,7 +93,7 @@ public class AppWindow {
 		//set what types of files to display in chooser
 		fc.setFileFilter(new FileFilter(){
 			public boolean accept(File file) {
-				if(file.getName().toLowerCase().endsWith(".jpg") || file.getName().toLowerCase().endsWith(".jpeg")) {
+				if(file.getName().toLowerCase().endsWith(".jpg") || file.getName().toLowerCase().endsWith(".jpeg") || file.isDirectory()) {
 					return true;}
 				return false;
 			}
@@ -108,19 +114,23 @@ public class AppWindow {
 	 */
 	private void initialize() {
 		frame = new JFrame();
-		frame.setBounds(100, 100, 600, 800);
+		frame.setBounds(50, 50, 600, 800);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.setIconImage(null);
-		frame.setResizable(true);
+		frame.setResizable(false);
 		
         textField = new JTextField();
-        textField.setBounds(7, 727, 564, 23);
+        textField.setBounds(7, 737, 577, 23);
         frame.getContentPane().add(textField);
         textField.setColumns(10);
         textField.getText();
         
+        lblImage = new JLabel("");
+        //lblImage.setIcon(new ImageIcon("C:\\Users\\Adam\\Documents\\IMG_20201003_184642306.jpg"));
+        lblImage.setBounds(7, 41, 577, 685);
+        frame.getContentPane().add(lblImage);
+                
         JButton btnOpen = new JButton("Open File(s)");
-        btnOpen.setBounds(7, 7, 267, 23);
+        btnOpen.setBounds(7, 7, 284, 23);
         btnOpen.addMouseListener(new MouseAdapter() {
         	@Override
         	public void mouseReleased(MouseEvent e) {
@@ -253,6 +263,18 @@ public class AppWindow {
                     gImage.setColor(Color.getHSBColor(28/360f, 1f, 1f));
                     gImage.fill(outline); //fill in the outline with color
                     
+                    
+                    //draw image to ui
+                    //lblImage.getGraphics().drawImage(image, 0, 0, lblImage.getHeight(), lblImage.getWidth(), 0, 0, image.getHeight(), image.getWidth(),null);
+                    //decide if the image aspect ratio is wider or taller than label to decide how to scale it
+                    double ratioLabel = lblImage.getHeight()/lblImage.getWidth();
+                    double ratioImage = image.getHeight()/image.getWidth();
+                    if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
+                    	lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
+                    }else {
+                    	lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+                    }
+                    
                 } else {
                     //action on cancel, probably nothing
                 }
@@ -262,7 +284,7 @@ public class AppWindow {
         frame.getContentPane().add(btnOpen);
         
         JButton btnSave = new JButton("Save File");
-        btnSave.setBounds(284, 7, 290, 23);
+        btnSave.setBounds(301, 7, 283, 23);
         btnSave.addMouseListener(new MouseAdapter() {
         	@Override
         	public void mouseReleased(MouseEvent e) {
@@ -339,6 +361,8 @@ public class AppWindow {
         });
         frame.getContentPane().add(btnSave);
         
+        
+
 
 		
 		
@@ -348,5 +372,4 @@ public class AppWindow {
         
         
 	}
-
 }
