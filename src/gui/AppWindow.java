@@ -114,23 +114,23 @@ public class AppWindow {
 	 */
 	private void initialize() {
 		frame = new JFrame();
-		frame.setBounds(50, 50, 600, 800);
+		frame.setBounds(50, 50, 850, 700);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setResizable(false);
 		
         textField = new JTextField();
-        textField.setBounds(7, 737, 577, 23);
+        textField.setBounds(7, 630, 820, 23);
         frame.getContentPane().add(textField);
         textField.setColumns(10);
         textField.getText();
         
         lblImage = new JLabel("");
         //lblImage.setIcon(new ImageIcon("C:\\Users\\Adam\\Documents\\IMG_20201003_184642306.jpg"));
-        lblImage.setBounds(7, 41, 577, 685);
+        lblImage.setBounds(7, 41, 820, 585);
         frame.getContentPane().add(lblImage);
                 
         JButton btnOpen = new JButton("Open File(s)");
-        btnOpen.setBounds(7, 7, 284, 23);
+        btnOpen.setBounds(7, 7, 405, 23);
         btnOpen.addMouseListener(new MouseAdapter() {
         	@Override
         	public void mouseReleased(MouseEvent e) {
@@ -284,7 +284,7 @@ public class AppWindow {
         frame.getContentPane().add(btnOpen);
         
         JButton btnSave = new JButton("Save File");
-        btnSave.setBounds(301, 7, 283, 23);
+        btnSave.setBounds(422, 7, 405, 23);
         btnSave.addMouseListener(new MouseAdapter() {
         	@Override
         	public void mouseReleased(MouseEvent e) {
