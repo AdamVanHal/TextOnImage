@@ -362,14 +362,16 @@ public class AppWindow {
         frame.getContentPane().add(btnSave);
         
         
-
-
-		
-		
-		
-		
-		
-        
         
 	}
+	private void getExif() {
+		
+	}
+	private void drawText(String text, double location) {
+		
+	}
+	private void writeExif() {
+		
+	}
+	
 }
