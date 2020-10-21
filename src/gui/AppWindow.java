@@ -224,45 +224,9 @@ public class AppWindow {
 //                    System.out.println(gpsCoords.findField(4));
 //                    TiffOutputField field = gpsCoords.findField(2);
                     
-                    //setup font stuff so we can write on the image
-                    Font overlayFont = new Font(Font.SANS_SERIF,Font.BOLD,70);
-                    gImage.setFont(overlayFont);
-                    //suggest that it use antiAliaing since this is text
-                    gImage.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                            RenderingHints.VALUE_ANTIALIAS_ON);
-                    gImage.setRenderingHint(RenderingHints.KEY_RENDERING,
-                            RenderingHints.VALUE_RENDER_QUALITY);
-                    //draw date
-                    //create shape of the outer edge of the text. This will allow us to draw the outline in one color and then fill with solid color
-                    TextLayout textLayout = new TextLayout(date,overlayFont,new FontRenderContext(null,false,false)); //turn string into style we want for rendering
-                    AffineTransform transform = new AffineTransform();
-                    drawLocation = image.getHeight()*0.97 - textLayout.getAscent()*3.3;//where the line of text should be, start at 3 lines above the 97% mark 
-                    transform.translate(image.getWidth()*0.03, drawLocation);//set location of outline for rendering in the bottom of the image
-                    drawLocation = drawLocation + textLayout.getAscent()*1.1;//drop down a line
-                    Shape outline = textLayout.getOutline(transform); //get the outer edges of the text
-                    //Draw a string on the image
-                    //gImage.drawString(coords, 100, 100);//string does not quite line up if you use this, using fill instead.
-                    gImage.setColor(Color.BLACK);
-                    gImage.setStroke(new BasicStroke(10));
-                    gImage.draw(outline);//adds the outline
-                    gImage.setColor(Color.getHSBColor(28/360f, 1f, 1f));
-                    gImage.fill(outline); //fill in the outline with color
-                    
-                    //draw coords
-                    //create shape of the outer edge of the text. This will allow us to draw the outline in one color and then fill with solid color
-                    textLayout = new TextLayout(coords,overlayFont,new FontRenderContext(null,false,false)); //turn string into style we want for rendering
-                    transform = new AffineTransform();
-                    transform.translate(image.getWidth()*0.03, drawLocation);//set location of outline for rendering in the bottom of the image
-                    drawLocation = drawLocation + textLayout.getAscent()*1.1;//drop down a line
-                    outline = textLayout.getOutline(transform); //get the outer edges of the text
-                    //Draw a string on the image
-                    //gImage.drawString(coords, 100, 100);//string does not quite line up if you use this, using fill instead.
-                    gImage.setColor(Color.BLACK);
-                    gImage.setStroke(new BasicStroke(10));
-                    gImage.draw(outline);//adds the outline
-                    gImage.setColor(Color.getHSBColor(28/360f, 1f, 1f));
-                    gImage.fill(outline); //fill in the outline with color
-                    
+                    drawLocation = image.getHeight()*0.90;//where the line of text should be, start at 90% mark
+                    drawLocation = drawText(image,date,drawLocation); //add date to image
+                    drawLocation = drawText(image,coords,drawLocation); //add coords to image
                     
                     //draw image to ui
                     //lblImage.getGraphics().drawImage(image, 0, 0, lblImage.getHeight(), lblImage.getWidth(), 0, 0, image.getHeight(), image.getWidth(),null);
@@ -290,21 +254,7 @@ public class AppWindow {
         	public void mouseReleased(MouseEvent e) {
         		//draw user text
         		if(textField.getText() != null) {
-        			
-        			//create shape of the outer edge of the text. This will allow us to draw the outline in one color and then fill with solid color
-                    Font overlayFont = new Font(Font.SANS_SERIF,Font.BOLD,70);
-        			TextLayout textLayout = new TextLayout(textField.getText(),overlayFont,new FontRenderContext(null,false,false)); //turn string into style we want for rendering
-                    AffineTransform transform = new AffineTransform();
-                    transform.translate(image.getWidth()*0.03, drawLocation);//set location of outline for rendering in the bottom of the image
-                    drawLocation = drawLocation + textLayout.getAscent()*1.1;//drop down a line
-                    Shape outline = textLayout.getOutline(transform); //get the outer edges of the text
-                    //Draw a string on the image
-                    //gImage.drawString(coords, 100, 100);//string does not quite line up if you use this, using fill instead.
-                    gImage.setColor(Color.BLACK);
-                    gImage.setStroke(new BasicStroke(10));
-                    gImage.draw(outline);//adds the outline
-                    gImage.setColor(Color.getHSBColor(28/360f, 1f, 1f));
-                    gImage.fill(outline); //fill in the outline with color
+        			drawLocation = drawText(image, textField.getText(), drawLocation);
         		}
         		//save image
                 int returnVal = fc.showOpenDialog(frame);
@@ -340,22 +290,9 @@ public class AppWindow {
         			e2.printStackTrace();
         		}
                 
+                writeExif(file, outputSet);
                 //add EXIF data using Apache library
-                try {
-        			new ExifRewriter().updateExifMetadataLossless(Files.readAllBytes(file.toPath()), new FileOutputStream(file), outputSet);
-        		} catch (ImageReadException ex) {
-        			// TODO Auto-generated catch block
-        			ex.printStackTrace();
-        		} catch (ImageWriteException ex) {
-        			// TODO Auto-generated catch block
-        			ex.printStackTrace();
-        		} catch (FileNotFoundException ex) {
-        			// TODO Auto-generated catch block
-        			ex.printStackTrace();
-        		} catch (IOException ex) {
-        			// TODO Auto-generated catch block
-        			ex.printStackTrace();
-        		}
+                
         		
         	}
         });
@@ -367,11 +304,52 @@ public class AppWindow {
 	private void getExif() {
 		
 	}
-	private void drawText(String text, double location) {
-		
+	
+	//Takes a string and an vertical position. draws the string on the image at that position, returning the original position plus the height of the text
+	//can't get dimensions from graphic, maybe pass image and create graphic?
+	private double drawText(BufferedImage bImage, String text, double location) {
+		Graphics2D graphic = bImage.createGraphics();
+		//create shape of the outer edge of the text. This will allow us to draw the outline in one color and then fill with solid color
+        Font overlayFont = new Font(Font.SANS_SERIF,Font.BOLD,70);
+		TextLayout textLayout = new TextLayout(text,overlayFont,new FontRenderContext(null,false,false)); //turn string into style we want for rendering
+		graphic.setFont(overlayFont);
+        //suggest that it use antiAliaing since this is text
+		graphic.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+		graphic.setRenderingHint(RenderingHints.KEY_RENDERING,
+                RenderingHints.VALUE_RENDER_QUALITY);
+        AffineTransform transform = new AffineTransform();
+        
+        transform.translate(bImage.getWidth()*0.03, location);//set location of outline for rendering in the bottom of the image
+        location = location + textLayout.getAscent()*1.1;//drop down a line
+        Shape outline = textLayout.getOutline(transform); //get the outer edges of the text
+        //Draw a string on the image
+        //gImage.drawString(text, 100, 100);//string does not quite line up if you use this, using fill instead.
+        graphic.setColor(Color.BLACK);
+        graphic.setStroke(new BasicStroke(10));
+        graphic.draw(outline);//adds the outline
+        graphic.setColor(Color.getHSBColor(28/360f, 1f, 1f));
+        graphic.fill(outline); //fill in the outline with color
+        return location;
 	}
-	private void writeExif() {
-		
+	
+	//simple helper that takes a file and a set of EXIF data and rewrites the image file with the EXIF
+	private void writeExif(File dest, TiffOutputSet tiffOutput ) {
+		try {
+			new ExifRewriter().updateExifMetadataLossless(Files.readAllBytes(dest.toPath()), new FileOutputStream(file), tiffOutput);
+		} catch (ImageReadException ex) {
+			// TODO Auto-generated catch block
+			ex.printStackTrace();
+		} catch (ImageWriteException ex) {
+			// TODO Auto-generated catch block
+			ex.printStackTrace();
+		} catch (FileNotFoundException ex) {
+			// TODO Auto-generated catch block
+			ex.printStackTrace();
+		} catch (IOException ex) {
+			// TODO Auto-generated catch block
+			ex.printStackTrace();
+		}
 	}
 	
 }
