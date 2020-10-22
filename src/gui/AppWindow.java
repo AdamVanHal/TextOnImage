@@ -52,6 +52,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.JTextField;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 
 
 
@@ -106,7 +107,8 @@ public class AppWindow {
 				return "JPG and JPEG images";
 			}
 		});
-		fc.setMultiSelectionEnabled(true);
+		fc.setMultiSelectionEnabled(true);//allow multiselect
+		fc.setAcceptAllFileFilterUsed(false);//disable the file filter that accepts anything
 
 		initialize();
 	}
@@ -137,6 +139,7 @@ public class AppWindow {
 			@Override
 			public void mouseReleased(MouseEvent e) {
 				//open file chooser
+				fc.setApproveButtonText("open");
 				int returnVal = fc.showOpenDialog(frame);
 				if (returnVal == JFileChooser.APPROVE_OPTION) {
 					fileList = new LinkedList<File>(Arrays.asList(fc.getSelectedFiles()));//list of all files chosen by user
@@ -149,9 +152,11 @@ public class AppWindow {
 					}
 					catch (Exception ex)
 					{
-						//failed to make image, handle exception here TODO action to take when file is not image
 						ex.printStackTrace();
-						System.exit(1);
+						JOptionPane.showMessageDialog(null, "Failed to Open Image");
+						return;
+						//failed to make image, handle exception here
+						//System.exit(1);
 					}
 
 					getExif(file);
@@ -190,6 +195,7 @@ public class AppWindow {
 					drawLocation = drawText(image, textField.getText(), drawLocation);
 				}
 				//save image
+				fc.setApproveButtonText("Save");
 				int returnVal = fc.showOpenDialog(frame);
 				if (returnVal == JFileChooser.APPROVE_OPTION) {
 					file = fc.getSelectedFile();
@@ -206,8 +212,9 @@ public class AppWindow {
 					try {
 						fileOutStream = new FileImageOutputStream(file);
 					} catch (IOException e4) {
-						// TODO Auto-generated catch block
 						e4.printStackTrace();
+						JOptionPane.showMessageDialog(null, "Failed to Create File");
+						return;
 					}
 					imWrite.setOutput(fileOutStream);
 					try {
@@ -216,8 +223,9 @@ public class AppWindow {
 						//ImageIO.write(image, "jpg", file); //this method blows away existing EXIF data, find way to preserve. Write exif back to image after making?
 						//Imaging.writeImage(image, file, ImageFormats.JPEG, null); //library does not support JPG writing so can not use this
 					} catch (IOException e2) {
-						// TODO Auto-generated catch block
 						e2.printStackTrace();
+						JOptionPane.showMessageDialog(null, "Failed to Save Image");
+						return;
 					}//end try/catch
 
 					//add EXIF data using Apache library
@@ -233,9 +241,10 @@ public class AppWindow {
 						}
 						catch (Exception ex)
 						{
-							//failed to make image, handle exception here TODO action to take when file is not image
+							//failed to make image, handle exception here
 							ex.printStackTrace();
-							System.exit(1);
+							JOptionPane.showMessageDialog(null, "Failed to Open Image");
+							return;
 						}
 
 						getExif(file);
@@ -273,19 +282,22 @@ public class AppWindow {
 		try {
 			imageBytes = Files.readAllBytes(imageFile.toPath());
 		} catch (IOException ex) {
-			// TODO Auto-generated catch block
 			ex.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Failed to Open File");
+			return;
 		}
 		//use Apache library to calculate the metadata and convert it to a TIFF style EXIF 
 		ImageMetadata metadata = null;
 		try {
 			metadata = Imaging.getMetadata(imageBytes);
 		} catch (ImageReadException ex) {
-			// TODO Auto-generated catch block
 			ex.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Image Format Error");
+			return;
 		} catch (IOException ex) {
-			// TODO Auto-generated catch block
 			ex.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Error I/O Failure");
+			return;
 		}
 		final JpegImageMetadata jpegMetadata = (JpegImageMetadata) metadata;
 		final TiffImageMetadata exif = jpegMetadata.getExif();
@@ -295,17 +307,19 @@ public class AppWindow {
 		try {
 			gpsInfo = exif.getGPS();
 		} catch (ImageReadException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Failed to Parse GPS Metadata");
 		}
+		coords = "";
+		date = "";
 		//Construct GPS Coord String
 		DecimalFormat df = new DecimalFormat("0.00000");
 
 		try {
 			coords = df.format(Math.abs(gpsInfo.getLatitudeAsDegreesNorth())) + "° " + gpsInfo.latitudeRef + ", " + df.format(Math.abs(gpsInfo.getLongitudeAsDegreesEast())) + "° " + gpsInfo.longitudeRef;
 		} catch (ImageReadException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Failed to Parse GPS Metadata");
 		}
 		//construct the date string
 		DateFormat dateFormat = new SimpleDateFormat("''yyyy:MM:dd HH:mm:ss''", Locale.ENGLISH);
@@ -314,16 +328,16 @@ public class AppWindow {
 		try {
 			imageDate = dateFormat.parse(jpegMetadata.findEXIFValueWithExactMatch(TiffTagConstants.TIFF_TAG_DATE_TIME).getValueDescription());
 		} catch (ParseException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Failed to Parse Date Metadata");
 		}
 		date = dateRenderFormat.format(imageDate);
 
 		try {
 			outputSet = exif.getOutputSet();
 		} catch (ImageWriteException ex) {
-			// TODO Auto-generated catch block
 			ex.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Failed to Copy Metadata, Cannot Save Metadata with New Image");
 		}
 
 		//print gps and date info to SYSO for debugging reasons, remove in final release. 
@@ -375,17 +389,21 @@ public class AppWindow {
 		try {
 			new ExifRewriter().updateExifMetadataLossless(Files.readAllBytes(dest.toPath()), new FileOutputStream(file), tiffOutput);
 		} catch (ImageReadException ex) {
-			// TODO Auto-generated catch block
 			ex.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Image Format did not Match Expectation, Metadata Save Failed");
+			return;
 		} catch (ImageWriteException ex) {
-			// TODO Auto-generated catch block
 			ex.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Failed to Save Image with Metadata Copy");
+			return;
 		} catch (FileNotFoundException ex) {
-			// TODO Auto-generated catch block
 			ex.printStackTrace();
+			JOptionPane.showMessageDialog(null, "File Missing when Adding Metadata");
+			return;
 		} catch (IOException ex) {
-			// TODO Auto-generated catch block
 			ex.printStackTrace();
+			JOptionPane.showMessageDialog(null, "File Failure when Adding Metadata");
+			return;
 		}
 	}
 
