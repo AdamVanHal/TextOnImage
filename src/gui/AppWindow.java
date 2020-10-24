@@ -121,6 +121,10 @@ public class AppWindow {
 		frame.setBounds(50, 50, 850, 700);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setResizable(false);
+		
+
+		JButton btnOpen = new JButton("Open File(s)");
+		JButton btnSave = new JButton("Save File");;
 
 		textField = new JTextField();
 		textField.setBounds(7, 630, 820, 23);
@@ -133,13 +137,14 @@ public class AppWindow {
 		lblImage.setBounds(7, 41, 820, 585);
 		frame.getContentPane().add(lblImage);
 
-		JButton btnOpen = new JButton("Open File(s)");
 		btnOpen.setBounds(7, 7, 405, 23);
 		btnOpen.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseReleased(MouseEvent e) {
 				//open file chooser
-				fc.setApproveButtonText("open");
+				fc.setDialogTitle("Open");
+				fc.setApproveButtonText("Open");
+				fc.setMultiSelectionEnabled(true);
 				int returnVal = fc.showOpenDialog(frame);
 				if (returnVal == JFileChooser.APPROVE_OPTION) {
 					fileList = new LinkedList<File>(Arrays.asList(fc.getSelectedFiles()));//list of all files chosen by user
@@ -176,7 +181,8 @@ public class AppWindow {
 					}else {
 						lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
 					}
-
+					
+					btnSave.setEnabled(true);//enable the save button because we have an image now
 				} else {
 					//action on cancel, probably nothing
 				}//end if ApproveOption
@@ -185,17 +191,24 @@ public class AppWindow {
 		frame.getContentPane().setLayout(null);
 		frame.getContentPane().add(btnOpen);
 
-		JButton btnSave = new JButton("Save File");
+		
 		btnSave.setBounds(422, 7, 405, 23);
+		btnSave.setEnabled(false);
 		btnSave.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseReleased(MouseEvent e) {
+				if(!btnSave.isEnabled()) {
+					return;//button is disabled, return immediately and do nothing
+				}
 				//draw user text
-				if(!textField.getText().isBlank()) {
+				if(!textField.getText().isEmpty()) {
 					drawLocation = drawText(image, textField.getText(), drawLocation);
 				}
 				//save image
 				fc.setApproveButtonText("Save");
+				fc.setDialogTitle("Save");
+				fc.setMultiSelectionEnabled(false);//disable multiselect and set the location to the current file so saving makes sense and does not show more files
+				fc.setSelectedFile(file);
 				int returnVal = fc.showOpenDialog(frame);
 				if (returnVal == JFileChooser.APPROVE_OPTION) {
 					file = fc.getSelectedFile();
@@ -205,7 +218,7 @@ public class AppWindow {
 					final ImageWriter imWrite = ImageIO.getImageWritersByFormatName("jpg").next();
 					JPEGImageWriteParam jpgParams = new JPEGImageWriteParam(null);
 					jpgParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-					jpgParams.setCompressionQuality(0.95f);//set quality to 90% using float
+					jpgParams.setCompressionQuality(0.95f);//set quality to 95% using float
 
 					//set location for writer by turning our file into an output stream and passing that to setOutput so we can close it later.
 					FileImageOutputStream fileOutStream = null;
@@ -265,6 +278,7 @@ public class AppWindow {
 						}
 					} else { //no file is next
 						lblImage.setIcon(null);
+						btnSave.setEnabled(false);//disable the save button because there is no image to save
 					}
 				} else {
 					//action on cancel, probably nothing
