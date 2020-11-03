@@ -8,6 +8,7 @@ import java.awt.Shape;
 import java.awt.font.FontRenderContext;
 import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
+import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -42,8 +43,10 @@ import org.apache.commons.imaging.Imaging;
 import org.apache.commons.imaging.common.ImageMetadata;
 import org.apache.commons.imaging.formats.jpeg.JpegImageMetadata;
 import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
+import org.apache.commons.imaging.formats.tiff.TiffField;
 import org.apache.commons.imaging.formats.tiff.TiffImageMetadata;
 import org.apache.commons.imaging.formats.tiff.constants.TiffTagConstants;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputDirectory;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 
 import javax.swing.ImageIcon;
@@ -72,6 +75,7 @@ public class AppWindow {
 	String coords = null;
 	String date = null;
 	double drawLocation = 0;
+	int direction = 0;
 
 
 	/**
@@ -153,7 +157,7 @@ public class AppWindow {
 					try
 					{
 						image = ImageIO.read(file);
-						//image = Imaging.getBufferedImage(file); //different library, not sure if different, use if there are problems
+						//image = Imaging.getBufferedImage(file); //different library, not sure if different, use if there are problems only limited support for jpg
 					}
 					catch (Exception ex)
 					{
@@ -163,9 +167,16 @@ public class AppWindow {
 						//failed to make image, handle exception here
 						//System.exit(1);
 					}
+					
+					//new image, set all globals to blank
+					coords = null;
+					date = null;
+					drawLocation = 0;
 
 					getExif(file);
-
+					
+					//fix image rotation
+					image = imageRotate(image,direction);
 
 					drawLocation = image.getHeight()*0.97 - (3*1.1*70);//where the line of text should be, start at 97% mark - 3 lines at 70 pt font
 					drawLocation = drawText(image,date,drawLocation); //add date to image
@@ -259,8 +270,16 @@ public class AppWindow {
 							JOptionPane.showMessageDialog(null, "Failed to Open Image");
 							return;
 						}
+						
+						//new image, set all globals to blank
+						coords = null;
+						date = null;
+						drawLocation = 0;
 
 						getExif(file);
+						
+						//fix image rotation
+						image = imageRotate(image,direction);
 
 						drawLocation = image.getHeight()*0.97 - (3*1.1*70);//where the line of text should be, start at 97% mark - 3 lines at 70 pt font
 						drawLocation = drawText(image,date,drawLocation); //add date to image
@@ -291,6 +310,7 @@ public class AppWindow {
 
 	}
 	private void getExif(File imageFile) {
+		outputSet = null;//reset old exif data before fetching
 		byte imageBytes[]=null;
 		//get the byte array of the original file of the image so that we can use it directly to find the EXIF data. Assumes the image is a jpeg
 		try {
@@ -313,8 +333,24 @@ public class AppWindow {
 			JOptionPane.showMessageDialog(null, "Error I/O Failure");
 			return;
 		}
+		if(metadata == null) {
+			JOptionPane.showMessageDialog(null, "Error No Metadata");
+			return;
+		}
 		final JpegImageMetadata jpegMetadata = (JpegImageMetadata) metadata;
 		final TiffImageMetadata exif = jpegMetadata.getExif();
+		
+		//get orientation data so we can correct image if needed
+		direction = 0;
+		try {
+			TiffField orientation = exif.findField(TiffTagConstants.TIFF_TAG_ORIENTATION);
+			if(orientation != null) {
+				direction = orientation.getIntValue();
+			}
+		} catch (ImageReadException e) {
+			e.printStackTrace();
+			//no need to throw up message if orientation tag is missing, it should be fine.
+		}
 
 		//Extract GPS metadata from the image
 		TiffImageMetadata.GPSInfo gpsInfo = null;
@@ -349,6 +385,13 @@ public class AppWindow {
 
 		try {
 			outputSet = exif.getOutputSet();
+			//since we will be manually flipping the image and restoring the image exif, we need to update this tag to 1 so it does not get rotated by other programs
+			if(outputSet != null && (direction != 0 || direction != 1)) {//check that the direction is not already "normal" and that we don't have empty metadata
+				//final TiffOutputDirectory exifDirectory = outputSet.getOrCreateExifDirectory();
+				//exifDirectory.removeField(TiffTagConstants.TIFF_TAG_ORIENTATION);
+				//exifDirectory.add(TiffTagConstants.TIFF_TAG_ORIENTATION, (short) 1);
+				outputSet.removeField(TiffTagConstants.TIFF_TAG_ORIENTATION);
+			}
 		} catch (ImageWriteException ex) {
 			ex.printStackTrace();
 			JOptionPane.showMessageDialog(null, "Failed to Copy Metadata, Cannot Save Metadata with New Image");
@@ -373,6 +416,9 @@ public class AppWindow {
 
 	//Takes a string and an vertical position. draws the string on the image at that position, returning the original position plus the height of the text
 	private double drawText(BufferedImage bImage, String text, double location) {
+		if(text == null) {//no text, skip rendering attempt
+			return location;
+		}
 		Graphics2D graphic = bImage.createGraphics();
 		//create shape of the outer edge of the text. This will allow us to draw the outline in one color and then fill with solid color
 		Font overlayFont = new Font(Font.SANS_SERIF,Font.BOLD,70);
@@ -395,11 +441,15 @@ public class AppWindow {
 		graphic.draw(outline);//adds the outline
 		graphic.setColor(Color.getHSBColor(28/360f, 1f, 1f));
 		graphic.fill(outline); //fill in the outline with color
+		graphic.dispose();
 		return location;
 	}
 
 	//simple helper that takes a file and a set of EXIF data and rewrites the image file with the EXIF
 	private void writeExif(File dest, TiffOutputSet tiffOutput ) {
+		if(tiffOutput == null) {//no exif present, dont write any
+			return;
+		}
 		try {
 			new ExifRewriter().updateExifMetadataLossless(Files.readAllBytes(dest.toPath()), new FileOutputStream(file), tiffOutput);
 		} catch (ImageReadException ex) {
@@ -419,6 +469,82 @@ public class AppWindow {
 			JOptionPane.showMessageDialog(null, "File Failure when Adding Metadata");
 			return;
 		}
+	}
+	
+	//simple tool to rotate images to correct for image sensors that were rotated at the time of image taking
+	private BufferedImage imageRotate(BufferedImage image, int exifDirection) {
+		AffineTransform transform = new AffineTransform();//tool for defining how the image needs to be changed
+		BufferedImage temp = new BufferedImage(image.getWidth(),image.getHeight(),image.getType());//by defualt the same size as the original, change dimensions if rotating
+		switch (exifDirection) {
+		case 0:
+			temp = new BufferedImage(image.getWidth(),image.getHeight(),image.getType());
+			break;//value was not set, image does not need rotating.
+		case 1:
+			temp = new BufferedImage(image.getWidth(),image.getHeight(),image.getType());
+			break;//Corresponds to the "normal" orientation
+		case 2:
+			 //mirrored in X, 0,0 is top right side transform.scale(-1.0, 1.0);
+			 transform.translate(-image.getWidth(), 0);
+			 temp = new BufferedImage(image.getWidth(),image.getHeight(),image.getType());
+			break;
+		case 3:
+			 //upside down, rotate 180. 0,0 is bottom right
+			 transform.translate(image.getWidth(), image.getHeight());
+			 transform.rotate(Math.PI);
+			 temp = new BufferedImage(image.getWidth(),image.getHeight(),image.getType());
+			//g.rotate(Math.PI);
+			//g.translate(temp.getWidth(), temp.getHeight());
+			break;
+		case 4:
+			 //mirrored in Y, 0,0 is bottom left 
+			 transform.scale(1.0, -1.0);
+			 transform.translate(0, -image.getHeight());
+			 temp = new BufferedImage(image.getWidth(),image.getHeight(),image.getType());
+			break;
+		case 5:
+			 //mirrored in X and rotated, 0,0 is left,top 
+			 transform.rotate(-Math.PI/2);
+			 transform.scale(-1.0, 1.0);
+			 temp = new BufferedImage(image.getHeight(),image.getWidth(),image.getType());
+			break;
+		case 6:
+			  //rotated counter clockwise 90, 0,0 is right,top
+			  transform.translate(image.getHeight(), 0); 
+			  transform.rotate(Math.PI/2);
+			  temp = new BufferedImage(image.getHeight(),image.getWidth(),image.getType());
+			//g.translate(temp.getWidth()/2, 0);
+			//g.rotate(Math.PI/2);
+			break;
+		case 7:
+			 //mirrored Y and rotated 0,0 is right,bottom 
+			 transform.scale(-1.0, 1.0);
+			 transform.translate(-image.getHeight(), 0); 
+			 transform.translate(0,image.getWidth()); 
+			 transform.rotate(3*Math.PI/2);
+			 temp = new BufferedImage(image.getHeight(),image.getWidth(),image.getType());
+			break;
+		case 8:
+			  //rotated clockwise 90 0,0 is left,bottom 
+			 transform.translate(0,
+			 image.getWidth()); 
+			 transform.rotate(3*Math.PI/2);
+			 temp = new BufferedImage(image.getHeight(),image.getWidth(),image.getType());
+			//g.rotate(3*Math.PI/2);
+			//g.translate(0, temp.getHeight());
+			break;
+		}
+		
+//		  AffineTransformOp op = new AffineTransformOp(transform,AffineTransformOp.TYPE_BICUBIC); 
+//		  BufferedImage	temp = op.createCompatibleDestImage(image, image.getColorModel()); 
+//		  Graphics2D g = temp.createGraphics(); 
+//		  g.setBackground(Color.WHITE);
+//		  g.clearRect(0, 0, temp.getWidth(), temp.getHeight()); temp = op.filter(image, temp);
+//		  image=temp;
+		Graphics2D g = temp.createGraphics();
+		g.transform(transform);
+		g.drawImage(image, null, 0, 0);
+		g.dispose();
+		return temp;
 	}
 
 }
