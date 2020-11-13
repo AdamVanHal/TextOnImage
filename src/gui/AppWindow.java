@@ -8,7 +8,6 @@ import java.awt.Shape;
 import java.awt.font.FontRenderContext;
 import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
-import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -46,7 +45,6 @@ import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
 import org.apache.commons.imaging.formats.tiff.TiffField;
 import org.apache.commons.imaging.formats.tiff.TiffImageMetadata;
 import org.apache.commons.imaging.formats.tiff.constants.TiffTagConstants;
-import org.apache.commons.imaging.formats.tiff.write.TiffOutputDirectory;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 
 import javax.swing.ImageIcon;
@@ -56,6 +54,11 @@ import java.awt.event.MouseEvent;
 import javax.swing.JTextField;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JCheckBox;
+import java.awt.event.ItemListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
 
 
 
@@ -70,6 +73,8 @@ public class AppWindow {
 	File file = null; //location of our image file
 
 	BufferedImage image = null; //Image that we will be manipulating
+	BufferedImage original = null; //Image to store unedited version in case we want to remove changes
+	BufferedImage logo = null;
 	TiffOutputSet outputSet = null; //stores EXIF data to write to new image
 
 	String coords = null;
@@ -128,6 +133,72 @@ public class AppWindow {
 		
 
 		JButton btnOpen = new JButton("Open File(s)");
+		
+		JButton btnLogoSel = new JButton("Choose Logo");
+		btnLogoSel.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				//get logo image
+				fc.setApproveButtonText("Open");
+				fc.setDialogTitle("Get Logo");
+				fc.setMultiSelectionEnabled(false);//disable multiselect and set the location to the current file so saving makes sense and does not show more files
+				fc.setSelectedFile(file);
+				int returnVal = fc.showOpenDialog(frame);
+				if (returnVal == JFileChooser.APPROVE_OPTION) {
+					file = fc.getSelectedFile();
+				}
+				try {
+					logo = ImageIO.read(file);
+				} catch (IOException e1) {
+					e1.printStackTrace();
+					JOptionPane.showMessageDialog(null, "Failed to Open Image");
+					return;
+				}
+			}
+		});
+		btnLogoSel.setEnabled(false);
+		btnLogoSel.setBounds(341, 7, 142, 23);
+		frame.getContentPane().add(btnLogoSel);
+		
+		JCheckBox chckbxAddLogo = new JCheckBox("Add Logo");
+		chckbxAddLogo.addItemListener(new ItemListener() {
+			public void itemStateChanged(ItemEvent e) {
+				if(chckbxAddLogo.isSelected()) {
+					btnLogoSel.setEnabled(true);
+				}else {
+					btnLogoSel.setEnabled(false);
+				}
+			}
+		});
+		chckbxAddLogo.setBounds(256, 7, 79, 23);
+		frame.getContentPane().add(chckbxAddLogo);
+		
+		JCheckBox chckbxDateLocation = new JCheckBox("Add GPS Info");
+		chckbxDateLocation.setSelected(true);
+		chckbxDateLocation.addItemListener(new ItemListener() {
+			public void itemStateChanged(ItemEvent e) {
+				if(lblImage.getIcon() != null) {
+					double ratioLabel = lblImage.getHeight()/lblImage.getWidth();
+					if(chckbxDateLocation.isSelected()) {//are we displaying the gps data on image?
+						double ratioImage = image.getHeight()/image.getWidth();
+						if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
+							lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
+						}else {
+							lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+						}
+					}else {
+						double ratioImage = original.getHeight()/original.getWidth();
+						if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
+							lblImage.setIcon(new ImageIcon(original.getScaledInstance(lblImage.getWidth(), -1, 0)));
+						}else {
+							lblImage.setIcon(new ImageIcon(original.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+						}
+					}
+				}
+			}
+		});
+		chckbxDateLocation.setBounds(489, 7, 99, 23);
+		frame.getContentPane().add(chckbxDateLocation);
+		
 		JButton btnSave = new JButton("Save File");;
 
 		textField = new JTextField();
@@ -137,11 +208,10 @@ public class AppWindow {
 		textField.getText();
 
 		lblImage = new JLabel("");
-		//lblImage.setIcon(new ImageIcon("C:\\Users\\Adam\\Documents\\IMG_20201003_184642306.jpg"));
 		lblImage.setBounds(7, 41, 820, 585);
 		frame.getContentPane().add(lblImage);
 
-		btnOpen.setBounds(7, 7, 405, 23);
+		btnOpen.setBounds(7, 7, 243, 23);
 		btnOpen.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseReleased(MouseEvent e) {
@@ -157,7 +227,8 @@ public class AppWindow {
 					try
 					{
 						image = ImageIO.read(file);
-						//image = Imaging.getBufferedImage(file); //different library, not sure if different, use if there are problems only limited support for jpg
+						original = ImageIO.read(file);
+						//image = Imaging.getBufferedImage(file); //Do not use, only limited support for jpg
 					}
 					catch (Exception ex)
 					{
@@ -177,6 +248,7 @@ public class AppWindow {
 					
 					//fix image rotation
 					image = imageRotate(image,direction);
+					original = imageRotate(original,direction);
 
 					drawLocation = image.getHeight()*0.97 - (3*1.1*70);//where the line of text should be, start at 97% mark - 3 lines at 70 pt font
 					drawLocation = drawText(image,date,drawLocation); //add date to image
@@ -186,11 +258,20 @@ public class AppWindow {
 					//lblImage.getGraphics().drawImage(image, 0, 0, lblImage.getHeight(), lblImage.getWidth(), 0, 0, image.getHeight(), image.getWidth(),null);
 					//decide if the image aspect ratio is wider or taller than label to decide how to scale it
 					double ratioLabel = lblImage.getHeight()/lblImage.getWidth();
-					double ratioImage = image.getHeight()/image.getWidth();
-					if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
-						lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
+					if(chckbxDateLocation.isSelected()) {//are we displaying the gps data on image?
+						double ratioImage = image.getHeight()/image.getWidth();
+						if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
+							lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
+						}else {
+							lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+						}
 					}else {
-						lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+						double ratioImage = original.getHeight()/original.getWidth();
+						if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
+							lblImage.setIcon(new ImageIcon(original.getScaledInstance(lblImage.getWidth(), -1, 0)));
+						}else {
+							lblImage.setIcon(new ImageIcon(original.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+						}
 					}
 					
 					btnSave.setEnabled(true);//enable the save button because we have an image now
@@ -203,7 +284,7 @@ public class AppWindow {
 		frame.getContentPane().add(btnOpen);
 
 		
-		btnSave.setBounds(422, 7, 405, 23);
+		btnSave.setBounds(594, 7, 233, 23);
 		btnSave.setEnabled(false);
 		btnSave.addMouseListener(new MouseAdapter() {
 			@Override
@@ -224,7 +305,13 @@ public class AppWindow {
 				if (returnVal == JFileChooser.APPROVE_OPTION) {
 					file = fc.getSelectedFile();
 					//anything else we want to do with the file
-
+					
+					//add logo if desired
+					if(chckbxAddLogo.isSelected() && logo != null) {
+						Graphics2D graphic = image.createGraphics();
+						graphic.drawImage(logo, (image.getWidth()-logo.getWidth())-80, (image.getHeight()-logo.getHeight())-80, null);
+						graphic.dispose();
+					}
 					//create and image writer and set it to the quality settings we want
 					final ImageWriter imWrite = ImageIO.getImageWritersByFormatName("jpg").next();
 					JPEGImageWriteParam jpgParams = new JPEGImageWriteParam(null);
@@ -242,6 +329,11 @@ public class AppWindow {
 					}
 					imWrite.setOutput(fileOutStream);
 					try {
+						if(chckbxDateLocation.isSelected()) {//are we saving with or without the gps data
+							imWrite.write(null,new IIOImage(image,null,null),jpgParams);//write image using params set above. Still need to add EXIF data
+						}else {
+							imWrite.write(null,new IIOImage(original,null,null),jpgParams);//write image using params set above. Still need to add EXIF data
+						}
 						imWrite.write(null,new IIOImage(image,null,null),jpgParams);//write image using params set above. Still need to add EXIF data
 						fileOutStream.close();//close the file to release locks
 						//ImageIO.write(image, "jpg", file); //this method blows away existing EXIF data, find way to preserve. Write exif back to image after making?
@@ -261,6 +353,7 @@ public class AppWindow {
 						try
 						{
 							image = ImageIO.read(file);
+							original = ImageIO.read(file);//original to save and reuse if needed
 							//image = Imaging.getBufferedImage(file); //different library, not sure if different, use if there are problems
 						}
 						catch (Exception ex)
@@ -280,6 +373,7 @@ public class AppWindow {
 						
 						//fix image rotation
 						image = imageRotate(image,direction);
+						original = imageRotate(original,direction);
 
 						drawLocation = image.getHeight()*0.97 - (3*1.1*70);//where the line of text should be, start at 97% mark - 3 lines at 70 pt font
 						drawLocation = drawText(image,date,drawLocation); //add date to image
@@ -289,11 +383,20 @@ public class AppWindow {
 						//lblImage.getGraphics().drawImage(image, 0, 0, lblImage.getHeight(), lblImage.getWidth(), 0, 0, image.getHeight(), image.getWidth(),null);
 						//decide if the image aspect ratio is wider or taller than label to decide how to scale it
 						double ratioLabel = lblImage.getHeight()/lblImage.getWidth();
-						double ratioImage = image.getHeight()/image.getWidth();
-						if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
-							lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
+						if(chckbxDateLocation.isSelected()) {//are we displaying the gps data on image?
+							double ratioImage = image.getHeight()/image.getWidth();
+							if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
+								lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
+							}else {
+								lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+							}
 						}else {
-							lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+							double ratioImage = original.getHeight()/original.getWidth();
+							if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
+								lblImage.setIcon(new ImageIcon(original.getScaledInstance(lblImage.getWidth(), -1, 0)));
+							}else {
+								lblImage.setIcon(new ImageIcon(original.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+							}
 						}
 					} else { //no file is next
 						lblImage.setIcon(null);
@@ -546,5 +649,4 @@ public class AppWindow {
 		g.dispose();
 		return temp;
 	}
-
 }
