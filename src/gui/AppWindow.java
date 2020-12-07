@@ -74,7 +74,7 @@ public class AppWindow {
 
 	BufferedImage image = null; //Image that we will be manipulating
 	BufferedImage original = null; //Image to store unedited version in case we want to remove changes
-	BufferedImage logo = null;
+	BufferedImage logo = null; //Image to store image to be used for logo
 	TiffOutputSet outputSet = null; //stores EXIF data to write to new image
 
 	String coords = null;
@@ -118,7 +118,6 @@ public class AppWindow {
 		});
 		fc.setMultiSelectionEnabled(true);//allow multiselect
 		fc.setAcceptAllFileFilterUsed(false);//disable the file filter that accepts anything
-
 		initialize();
 	}
 
@@ -140,19 +139,51 @@ public class AppWindow {
 				//get logo image
 				fc.setApproveButtonText("Open");
 				fc.setDialogTitle("Get Logo");
-				fc.setMultiSelectionEnabled(false);//disable multiselect and set the location to the current file so saving makes sense and does not show more files
-				fc.setSelectedFile(file);
-				int returnVal = fc.showOpenDialog(frame);
+				fc.setMultiSelectionEnabled(false);//disable multiselect 
+				//save original filter and add a new filter that allows more image types
+				FileFilter oldFilter = fc.getFileFilter();
+				FileFilter anyImage = new FileFilter(){
+					public boolean accept(File file) {
+						//jpeg
+						if(file.getName().toLowerCase().endsWith(".jpg") || file.getName().toLowerCase().endsWith(".jpeg") || file.isDirectory()) {
+							return true;
+						}
+						//png
+						if(file.getName().toLowerCase().endsWith(".png")) {
+							return true;
+						}
+						//bmp
+						if(file.getName().toLowerCase().endsWith(".bmp") || file.getName().toLowerCase().endsWith(".wbmp")) {
+							return true;
+						}
+						//gif
+						if(file.getName().toLowerCase().endsWith(".gif")) {
+							return true;
+						}
+						return false;
+					}
+					public String getDescription() {
+						return "Any Image";
+					}
+				};
+				fc.setFileFilter(anyImage);
+				
+				int returnVal = fc.showOpenDialog(frame);//open the dialog and retrieve the selected file for use
 				if (returnVal == JFileChooser.APPROVE_OPTION) {
 					file = fc.getSelectedFile();
+					try {
+						logo = ImageIO.read(file);
+					} catch (IOException e1) {
+						e1.printStackTrace();
+						JOptionPane.showMessageDialog(null, "Failed to Open Image");
+						return;
+					}
+				}else {
+					//action was probably canceled, do anything needed to clean up here.
 				}
-				try {
-					logo = ImageIO.read(file);
-				} catch (IOException e1) {
-					e1.printStackTrace();
-					JOptionPane.showMessageDialog(null, "Failed to Open Image");
-					return;
-				}
+				//restore the old filter and remove the any image option
+				fc.setFileFilter(oldFilter);
+				fc.removeChoosableFileFilter(anyImage);
 			}
 		});
 		btnLogoSel.setEnabled(false);
@@ -202,7 +233,8 @@ public class AppWindow {
 		JButton btnSave = new JButton("Save File");;
 
 		textField = new JTextField();
-		textField.setBounds(7, 630, 820, 23);
+		textField.setToolTipText("Add a short note to the bottom of the image");
+		textField.setBounds(57, 630, 770, 23);
 		frame.getContentPane().add(textField);
 		textField.setColumns(10);
 		textField.getText();
@@ -408,6 +440,12 @@ public class AppWindow {
 			}//end mouse event
 		});
 		frame.getContentPane().add(btnSave);
+		
+		JLabel lblNotes = new JLabel("Note:");
+		lblNotes.setToolTipText("Add a short note to the bottom of the image");
+		lblNotes.setFont(new Font("Tahoma", Font.PLAIN, 13));
+		lblNotes.setBounds(7, 630, 40, 23);
+		frame.getContentPane().add(lblNotes);
 
 
 
