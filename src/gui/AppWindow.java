@@ -9,6 +9,7 @@ import java.awt.font.FontRenderContext;
 import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -132,6 +133,8 @@ public class AppWindow {
 		
 
 		JButton btnOpen = new JButton("Open File(s)");
+		JCheckBox chckbxLocation = new JCheckBox("Add GPS Info");
+		JCheckBox chckbxTimestamp = new JCheckBox("Add Timestamp");
 		
 		JButton btnLogoSel = new JButton("Choose Logo");
 		btnLogoSel.addActionListener(new ActionListener() {
@@ -187,7 +190,7 @@ public class AppWindow {
 			}
 		});
 		btnLogoSel.setEnabled(false);
-		btnLogoSel.setBounds(341, 7, 142, 23);
+		btnLogoSel.setBounds(300, 7, 113, 23);
 		frame.getContentPane().add(btnLogoSel);
 		
 		JCheckBox chckbxAddLogo = new JCheckBox("Add Logo");
@@ -200,16 +203,24 @@ public class AppWindow {
 				}
 			}
 		});
-		chckbxAddLogo.setBounds(256, 7, 79, 23);
+		chckbxAddLogo.setBounds(215, 7, 79, 23);
 		frame.getContentPane().add(chckbxAddLogo);
 		
-		JCheckBox chckbxDateLocation = new JCheckBox("Add GPS Info");
-		chckbxDateLocation.setSelected(true);
-		chckbxDateLocation.addItemListener(new ItemListener() {
+		
+		chckbxLocation.setSelected(true);
+		chckbxLocation.addItemListener(new ItemListener() {
 			public void itemStateChanged(ItemEvent e) {
 				if(lblImage.getIcon() != null) {
 					double ratioLabel = lblImage.getHeight()/lblImage.getWidth();
-					if(chckbxDateLocation.isSelected()) {//are we displaying the gps data on image?
+					if(chckbxLocation.isSelected()) {//are we displaying the gps data on image?
+						//reset the image and draw appropriate text on it
+						image = bytecopy(original);
+						drawLocation = image.getHeight()*0.97 - (3*1.1*70);//where the line of text should be, start at 97% mark - 3 lines at 70 pt font
+						if(chckbxTimestamp.isSelected()) {
+							drawLocation = drawText(image,date,drawLocation); //add date to image
+						}
+						drawLocation = drawText(image,coords,drawLocation); //add coords to image
+						//calculate image aspect ration so we can scale it properly
 						double ratioImage = image.getHeight()/image.getWidth();
 						if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
 							lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
@@ -217,18 +228,62 @@ public class AppWindow {
 							lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
 						}
 					}else {
-						double ratioImage = original.getHeight()/original.getWidth();
+						//reset the image and draw appropriate text on it
+						image = bytecopy(original);
+						drawLocation = image.getHeight()*0.97 - (3*1.1*70);//where the line of text should be, start at 97% mark - 3 lines at 70 pt font
+						if(chckbxTimestamp.isSelected()) {
+							drawLocation = drawText(image,date,drawLocation); //add date to image
+						}
+						double ratioImage = image.getHeight()/image.getWidth();
 						if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
-							lblImage.setIcon(new ImageIcon(original.getScaledInstance(lblImage.getWidth(), -1, 0)));
+							lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
 						}else {
-							lblImage.setIcon(new ImageIcon(original.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+							lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
 						}
 					}
 				}
 			}
 		});
-		chckbxDateLocation.setBounds(489, 7, 99, 23);
-		frame.getContentPane().add(chckbxDateLocation);
+		chckbxLocation.setBounds(419, 7, 99, 23);
+		frame.getContentPane().add(chckbxLocation);
+		
+		
+		chckbxTimestamp.setSelected(true);
+		chckbxTimestamp.addItemListener(new ItemListener() {
+			public void itemStateChanged(ItemEvent e) {
+				if(lblImage.getIcon() != null) {
+					double ratioLabel = lblImage.getHeight()/lblImage.getWidth();
+					if(chckbxTimestamp.isSelected()) {//are we displaying the time stamp data on image?
+						image = bytecopy(original);
+						drawLocation = image.getHeight()*0.97 - (3*1.1*70);//where the line of text should be, start at 97% mark - 3 lines at 70 pt font
+						drawLocation = drawText(image,date,drawLocation); //add date to image
+						if(chckbxLocation.isSelected()) {
+							drawLocation = drawText(image,coords,drawLocation); //add coords to image
+						}
+						double ratioImage = image.getHeight()/image.getWidth();
+						if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
+							lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
+						}else {
+							lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+						}
+					}else {
+						image = bytecopy(original);
+						drawLocation = image.getHeight()*0.97 - (3*1.1*70);//where the line of text should be, start at 97% mark - 3 lines at 70 pt font
+						if(chckbxLocation.isSelected()) {
+							drawLocation = drawText(image,coords,drawLocation); //add coords to image
+						}
+						double ratioImage = image.getHeight()/image.getWidth();
+						if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
+							lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
+						}else {
+							lblImage.setIcon(new ImageIcon(image.getScaledInstance(-1, lblImage.getHeight(), 0))); //set height to label and then scale width
+						}
+					}
+				}
+			}
+		});
+		chckbxTimestamp.setBounds(520, 7, 113, 23);
+		frame.getContentPane().add(chckbxTimestamp);
 		
 		JButton btnSave = new JButton("Save File");;
 
@@ -243,7 +298,7 @@ public class AppWindow {
 		lblImage.setBounds(7, 41, 820, 585);
 		frame.getContentPane().add(lblImage);
 
-		btnOpen.setBounds(7, 7, 243, 23);
+		btnOpen.setBounds(7, 7, 197, 23);
 		btnOpen.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseReleased(MouseEvent e) {
@@ -290,7 +345,7 @@ public class AppWindow {
 					//lblImage.getGraphics().drawImage(image, 0, 0, lblImage.getHeight(), lblImage.getWidth(), 0, 0, image.getHeight(), image.getWidth(),null);
 					//decide if the image aspect ratio is wider or taller than label to decide how to scale it
 					double ratioLabel = lblImage.getHeight()/lblImage.getWidth();
-					if(chckbxDateLocation.isSelected()) {//are we displaying the gps data on image?
+					if(chckbxLocation.isSelected()) {//are we displaying the gps data on image?
 						double ratioImage = image.getHeight()/image.getWidth();
 						if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
 							lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
@@ -316,7 +371,7 @@ public class AppWindow {
 		frame.getContentPane().add(btnOpen);
 
 		
-		btnSave.setBounds(594, 7, 233, 23);
+		btnSave.setBounds(639, 7, 188, 23);
 		btnSave.setEnabled(false);
 		btnSave.addMouseListener(new MouseAdapter() {
 			@Override
@@ -361,11 +416,6 @@ public class AppWindow {
 					}
 					imWrite.setOutput(fileOutStream);
 					try {
-						if(chckbxDateLocation.isSelected()) {//are we saving with or without the gps data
-							imWrite.write(null,new IIOImage(image,null,null),jpgParams);//write image using params set above. Still need to add EXIF data
-						}else {
-							imWrite.write(null,new IIOImage(original,null,null),jpgParams);//write image using params set above. Still need to add EXIF data
-						}
 						imWrite.write(null,new IIOImage(image,null,null),jpgParams);//write image using params set above. Still need to add EXIF data
 						fileOutStream.close();//close the file to release locks
 						//ImageIO.write(image, "jpg", file); //this method blows away existing EXIF data, find way to preserve. Write exif back to image after making?
@@ -415,7 +465,7 @@ public class AppWindow {
 						//lblImage.getGraphics().drawImage(image, 0, 0, lblImage.getHeight(), lblImage.getWidth(), 0, 0, image.getHeight(), image.getWidth(),null);
 						//decide if the image aspect ratio is wider or taller than label to decide how to scale it
 						double ratioLabel = lblImage.getHeight()/lblImage.getWidth();
-						if(chckbxDateLocation.isSelected()) {//are we displaying the gps data on image?
+						if(chckbxLocation.isSelected()) {//are we displaying the gps data on image?
 							double ratioImage = image.getHeight()/image.getWidth();
 							if(ratioLabel>ratioImage) { //check if the label is relatively taller than the source image, if it is then shrink width to fit and scale the height to match
 								lblImage.setIcon(new ImageIcon(image.getScaledInstance(lblImage.getWidth(), -1, 0)));
@@ -446,8 +496,6 @@ public class AppWindow {
 		lblNotes.setFont(new Font("Tahoma", Font.PLAIN, 13));
 		lblNotes.setBounds(7, 630, 40, 23);
 		frame.getContentPane().add(lblNotes);
-
-
 
 	}
 	private void getExif(File imageFile) {
@@ -686,5 +734,10 @@ public class AppWindow {
 		g.drawImage(image, null, 0, 0);
 		g.dispose();
 		return temp;
+	}
+	private BufferedImage bytecopy(BufferedImage Source) {
+		java.awt.image.ColorModel ColorModel = Source.getColorModel();
+		WritableRaster WritableRaster = Source.copyData(Source.getRaster().createCompatibleWritableRaster());
+		return new BufferedImage(ColorModel, WritableRaster, ColorModel.isAlphaPremultiplied(), null);
 	}
 }
